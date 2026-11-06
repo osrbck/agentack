@@ -6,6 +6,10 @@ agentack, ana Claude Code oturumunu bir *manager*'a dönüştürür. Manager her
 doğru Claude modelindeki uzman alt ajana yönlendirir ve iki kapıyı zorunlu kılar:
 **contract kontrol edilmeden inşa yok**, **bağımsız review olmadan "bitti" yok**.
 
+<p align="center">
+  <img src="docs/assets/agentack-flow.tr.svg" alt="agentack ajan ağacı: manager uzman ajanlara dallanır, builder'lar paralel worktree'lerde çalışır" width="100%">
+</p>
+
 Desteklenen stack'ler: **Next.js · Angular · Node.js (TypeScript) · Go**.
 
 > 🇬🇧 English: [README.md](README.md)
@@ -65,9 +69,13 @@ sınıflandır ─► (karar) ─► plan + contract ─► contract kapısı �
 ## Kurulum
 
 ```bash
-git clone https://github.com/osrbck/agentack.git ~/agentack
+git clone https://github.com/OWNER/agentack.git ~/agentack   # veya: git@github.com:OWNER/agentack.git
 ~/agentack/install.sh
 ```
+
+Git olmadan: GitHub sayfasından ZIP'i indir (**Code → Download ZIP**) ya da bir release al,
+aç ve klasörün içinde `./install.sh` çalıştır. Kendine göre değiştirmek istiyorsan repoyu fork'la
+ve kendi fork'unu klonla.
 
 Ana oturum modelini Opus yap: `~/.claude/settings.json` içine `"model": "opus"` ekle ya da oturumda `/model opus`.
 

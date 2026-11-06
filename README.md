@@ -6,6 +6,10 @@ agentack turns your main Claude Code session into a *manager* that classifies ea
 routes it to the right specialist subagent on the right Claude model, and enforces two
 gates: **no build before the contract is checked** and **no "done" before an independent review**.
 
+<p align="center">
+  <img src="docs/assets/agentack-flow.svg" alt="agentack agent tree: the manager branches into specialist agents, builders work in parallel worktrees" width="100%">
+</p>
+
 Stacks covered out of the box: **Next.js · Angular · Node.js (TypeScript) · Go**.
 
 > 🇹🇷 Türkçe: [README.tr.md](README.tr.md)
@@ -74,9 +78,13 @@ See [`skills/agentack/references/routing.md`](skills/agentack/references/routing
 ## Install
 
 ```bash
-git clone https://github.com/osrbck/agentack.git ~/agentack
+git clone https://github.com/OWNER/agentack.git ~/agentack   # or: git@github.com:OWNER/agentack.git
 ~/agentack/install.sh
 ```
+
+Without git: download the ZIP from the GitHub page (**Code → Download ZIP**) or a release,
+unzip it and run `./install.sh` inside the folder. Want to customize it? Fork the repo and
+clone your fork instead.
 
 This copies the skill to `~/.claude/skills/agentack` and the agents to `~/.claude/agents/`.
 Existing files with the same names are backed up to `~/.claude/backups/` first.
