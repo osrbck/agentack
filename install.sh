@@ -1,63 +1,107 @@
 #!/usr/bin/env bash
-# agentack (agentic stack) — skill + alt ajanları ~/.claude altına kurar.
-# Kullanım:
-#   ./install.sh            kur / güncelle
-#   ./install.sh --uninstall kaldır
-# Var olan aynı adlı dosyalar ~/.claude/backups/agentack-<zaman>/ altına yedeklenir.
+# Agentack — install the skill for Claude Code (default), Codex and/or Antigravity.
+#   ./install.sh              Claude Code  (~/.claude/skills/agentack)
+#   ./install.sh --codex      Codex        (~/.codex/skills/agentack)
+#   ./install.sh --agy        Antigravity  (~/.gemini/config/skills/agentack: app, IDE and CLI)
+#   ./install.sh --all        all three
+#   ./install.sh --uninstall  remove from all (keeps your config)
+# Upgrading from 0.1 is automatic: its global subagents are moved to ~/.claude/backups/.
 set -euo pipefail
 
-SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEST="${CLAUDE_HOME:-$HOME/.claude}"
+SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/skills/agentack"
+CLAUDE_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+CLAUDE_DIR="$CLAUDE_HOME/skills"
+CODEX_DIR="${CODEX_HOME:-$HOME/.codex}/skills"
+AGY_DIR="$HOME/.gemini/config/skills"
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
-BACKUP="$DEST/backups/agentack-$STAMP"
-AGENTS=$(cd "$SRC/agents" && ls *.md)
 
-backup() {
-  local target="$1"
-  if [ -e "$target" ]; then
-    mkdir -p "$BACKUP/$(dirname "${target#$DEST/}")"
-    cp -a "$target" "$BACKUP/${target#$DEST/}"
+install_to() {
+  local dest="$1/agentack"
+  mkdir -p "$1"
+  rm -rf "$dest"
+  cp -R "$SRC" "$dest"
+  find "$dest" -name '__pycache__' -type d -prune -exec rm -rf {} +
+  chmod +x "$dest/scripts/agentack.py"
+  echo "  installed: $dest"
+}
+
+remove_from() {
+  if [ -d "$1/agentack" ]; then rm -rf "$1/agentack"; echo "  removed: $1/agentack"; fi
+}
+
+# 0.1 kept its ten roles as global subagents. 2.0 does not use them, and left in place they
+# could be picked up in unrelated projects. Only files that are recognizably agentack's are moved.
+retire_v1_agents() {
+  local dir="$CLAUDE_HOME/agents" backup="$CLAUDE_HOME/backups/agentack-0.1-agents-$STAMP" name moved=0
+  [ -d "$dir" ] || return 0
+  for name in scout architect contract-guard be-go be-node fe-next fe-angular qa reviewer decider; do
+    if [ -f "$dir/$name.md" ] && grep -qE 'agentack|fullstack-workflow' "$dir/$name.md"; then
+      mkdir -p "$backup"
+      mv "$dir/$name.md" "$backup/"
+      moved=$((moved + 1))
+    fi
+  done
+  if [ "$moved" -gt 0 ]; then echo "  moved $moved agentack 0.1 subagents to: $backup"; fi
+}
+
+# Earlier 2.0 previews were installed as "agentack2". Fold them into "agentack".
+retire_preview() {
+  local d
+  for d in "$CLAUDE_DIR/agentack2" "$CODEX_DIR/agentack2" "$AGY_DIR/agentack2"; do
+    if [ -d "$d" ]; then rm -rf "$d"; echo "  removed preview: $d"; fi
+  done
+  if [ -f "$CONFIG_HOME/agentack2/config.json" ] && [ ! -f "$CONFIG_HOME/agentack/config.json" ]; then
+    mkdir -p "$CONFIG_HOME/agentack"
+    cp "$CONFIG_HOME/agentack2/config.json" "$CONFIG_HOME/agentack/config.json"
+    echo "  kept your roster: $CONFIG_HOME/agentack/config.json"
+  fi
+  if [ -f "$STATE_HOME/agentack2/limits.json" ] && [ ! -f "$STATE_HOME/agentack/limits.json" ]; then
+    mkdir -p "$STATE_HOME/agentack"
+    cp "$STATE_HOME/agentack2/limits.json" "$STATE_HOME/agentack/limits.json"
+  fi
+  rm -rf "$CONFIG_HOME/agentack2" "$STATE_HOME/agentack2"
+  # a status line hook installed by the preview points at a script that no longer exists
+  if [ -f "$CLAUDE_HOME/settings.json" ] && grep -q 'agentack2.py statusline' "$CLAUDE_HOME/settings.json"; then
+    python3 - "$CLAUDE_HOME/settings.json" "$CLAUDE_DIR/agentack/scripts/agentack.py" <<'PY'
+import json, sys
+path, script = sys.argv[1], sys.argv[2]
+data = json.load(open(path, encoding="utf-8"))
+data["statusLine"] = {"type": "command", "command": "python3 %s statusline" % script}
+json.dump(data, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+PY
+    echo "  updated the status line hook in: $CLAUDE_HOME/settings.json"
   fi
 }
 
-remove() {
-  local target="$1"
-  if [ -e "$target" ]; then
-    backup "$target"
-    rm -rf "$target"
-    echo "  kaldırıldı: ${target#$DEST/}"
-  fi
-}
-
-if [ "${1:-}" = "--uninstall" ]; then
-  echo "Kaldırılıyor: $DEST"
-  remove "$DEST/skills/agentack"
-  for a in $AGENTS; do remove "$DEST/agents/$a"; done
-  if [ -d "$BACKUP" ]; then echo "Yedek: $BACKUP"; fi
-  exit 0
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "python3 is required (3.8+)." >&2
+  exit 1
 fi
 
-echo "agentack kuruluyor: $DEST"
-mkdir -p "$DEST/skills" "$DEST/agents"
-
-# Eski adla yapılmış kurulumu temizle
-remove "$DEST/skills/fullstack-workflow"
-
-backup "$DEST/skills/agentack"
-rm -rf "$DEST/skills/agentack"
-cp -a "$SRC/skills/agentack" "$DEST/skills/"
-echo "  kuruldu: skills/agentack"
-
-for a in $AGENTS; do
-  backup "$DEST/agents/$a"
-  cp "$SRC/agents/$a" "$DEST/agents/$a"
-done
-echo "  kuruldu: agents/ ($(echo $AGENTS | wc -w) ajan)"
-
-if [ -d "$SRC/.git" ]; then
-  echo "  sürüm: $(git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo bilinmiyor)"
-fi
+case "${1:-}" in
+  --uninstall) remove_from "$CLAUDE_DIR"; remove_from "$CODEX_DIR"; remove_from "$AGY_DIR"
+               echo "  kept: $CONFIG_HOME/agentack (delete it to forget your roster)"; exit 0 ;;
+  --codex)     install_to "$CODEX_DIR" ;;
+  --agy)       install_to "$AGY_DIR" ;;
+  --all)       install_to "$CLAUDE_DIR"; install_to "$CODEX_DIR"; install_to "$AGY_DIR" ;;
+  "")          install_to "$CLAUDE_DIR" ;;
+  *)           echo "unknown option: $1" >&2; exit 2 ;;
+esac
+retire_v1_agents
+retire_preview
 
 echo
-echo "Tamam. Claude Code'u yeniden başlat; /agentack ile çağır, /agents ile ajanları kontrol et."
-if [ -d "$BACKUP" ]; then echo "Eski dosyalar: $BACKUP"; fi
+echo "Agent CLIs on this machine:"
+python3 "$SRC/scripts/agentack.py" detect | python3 -c "$(cat <<'PY'
+import json, sys
+d = json.load(sys.stdin)
+for p in d["providers"]:
+    mark = "+" if p["installed"] else "-"
+    extra = (p.get("version") or "") if p["installed"] else "not installed"
+    print("  %s %-12s %s" % (mark, p["label"], extra))
+PY
+)"
+echo
+echo "Done. Restart your agent and run: /agentack setup"

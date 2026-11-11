@@ -1,51 +1,62 @@
-# Contract Kuralları
+# Contracts
 
-Contract tek doğruluk kaynağıdır. Kod contract'tan üretilir, contract koddan değil.
+A contract is whatever one part of the system promises another: an HTTP API, an event, an RPC
+service, a GraphQL schema, or the shared types of a full stack app. `init` records which kinds the
+project has and where. The rules below apply to all of them; the tables give the default tools
+when the project has no command of its own.
 
-## Formatlar
+## Rules for every kind
 
-- **HTTP:** OpenAPI 3.1, modül başına `contracts/<module>/openapi.yaml`.
-- **Event:** AsyncAPI 3, `contracts/<module>/events.asyncapi.yaml`. Payload şemaları JSON Schema.
-- **Ortak:** `contracts/shared/components.yaml` (Problem Details hata modeli, cursor pagination,
-  Money, timestamp formatı). Modüller `$ref` ile kullanır, kopyalamaz.
+- **The contract comes first.** It changes before the code that implements or consumes it, and
+  ships in the same change.
+- **Generated code is never edited by hand.** Regenerate instead; CI should fail on a diff.
+- **Implementations are checked by the compiler:** a server implements the generated interface, a
+  client uses the generated types, so a mismatch fails the build rather than production.
+- **Additive changes** (a new optional field, a new endpoint or RPC, a new event) are allowed in the
+  same version. Consumers tolerate unknown fields and enum values.
+- **Breaking changes** (remove or rename, change a type, make something required, reshape a
+  response) get a new version and a deprecation period, take the Heavy path, and need the user's
+  approval. Detect them against the main branch with the kind's breaking-change tool.
+- **Errors** have one documented shape per project (for HTTP, RFC 9457 Problem Details unless the
+  project already uses another).
 
-## Yazım kuralları
+## Default tools per kind
 
-- `operationId` zorunlu ve benzersiz: `<module>.<verb><Noun>` (ör. `billing.createInvoice`).
-- Hatalar `application/problem+json` (RFC 9457). Her endpoint 4xx/5xx yanıtlarını belirtir.
-- Alanlar `camelCase`; ID'ler string (UUID/ULID); zaman `date-time` (UTC, RFC 3339).
-- Her şemada `required` açıkça yazılır; `additionalProperties: false` istek gövdelerinde.
-- Liste endpoint'leri cursor pagination kullanır (`limit`, `cursor`, `nextCursor`).
-- Her alanın `description` ve gerekiyorsa `example` değeri vardır.
-- Event adları geçmiş zaman: `invoice.paid`, `user.registered`; payload `eventId`,
-  `occurredAt`, `version` içerir.
+| Kind | Lint | Breaking check | Codegen (examples) |
+|---|---|---|---|
+| OpenAPI | `redocly lint` · `spectral lint` | `oasdiff breaking <base> <head>` | Go `oapi-codegen` · TS `openapi-typescript`, `orval`, `@hey-api/openapi-ts` · C# NSwag, Kiota · Java/Kotlin `openapi-generator` · Python `datamodel-code-generator` |
+| AsyncAPI | `asyncapi validate` | compare with `asyncapi diff` | `asyncapi generate` · Modelina |
+| protobuf / gRPC | `buf lint` | `buf breaking --against '.git#branch=main'` | `buf generate` |
+| GraphQL | `graphql-schema-linter` or the project's ESLint plugin | `graphql-inspector diff` | `graphql-codegen` · gqlgen · Strawberry · Hot Chocolate |
+| JSON Schema | `ajv compile` | review by hand, or a schema-diff tool | `quicktype` · `json-schema-to-typescript` |
+| typed (tRPC, ts-rest, shared zod) | the typecheck | the typecheck of every consumer | none: the types are shared |
 
-## Versiyonlama
+Contract tests where the project wants proof at run time: `schemathesis` (OpenAPI), Pact
+(consumer-driven, between services), the framework's own API tests elsewhere.
 
-- **Ekleyici değişiklik** (opsiyonel alan, yeni endpoint, yeni enum değeri istemcide toleranslıysa):
-  aynı major versiyonda yapılabilir.
-- **Kırıcı değişiklik** (alan silme/yeniden adlandırma, tip değişimi, opsiyonelin zorunlu olması,
-  response şeklinin değişmesi): yeni versiyon (`/v2/...` veya yeni event `version`) + eskisi
-  `deprecated: true` ile en az bir sürüm boyunca yaşar. Kullanıcı onayı şart.
-- Breaking-change kontrolü `oasdiff breaking` ile ana dala karşı yapılır.
+## Writing defaults (when the project has no conventions of its own)
 
-## Araç zinciri (proje CLAUDE.md'si farklısını söylemiyorsa)
+**HTTP (OpenAPI 3.1)**
+- A unique `operationId` per operation: `<module>.<verb><Noun>` (`billing.createInvoice`).
+- Every operation declares its 4xx/5xx responses; errors are `application/problem+json`.
+- Fields `camelCase`, IDs as strings (UUID/ULID), times `date-time` in UTC.
+- `required` listed explicitly; request bodies set `additionalProperties: false`.
+- Lists use cursor pagination (`limit`, `cursor`, `nextCursor`).
 
-| Adım | Araç |
-|---|---|
-| Lint | `@redocly/cli lint` veya `spectral lint` |
-| Breaking change | `oasdiff breaking <base> <head>` |
-| Mock sunucu | `@stoplight/prism-cli mock` |
-| Go codegen | `oapi-codegen` (strict-server + types), çıktısı `infra/http/gen` altında |
-| Node codegen | `openapi-typescript` (tipler) + istek doğrulama için `zod` şemaları (`openapi-zod-client` veya `orval`) |
-| Next.js client | `orval` (fetch + React Query) veya `openapi-fetch`, çıktı `packages/api-client` |
-| Angular client | `orval` angular hedefi veya `ng-openapi-gen`, çıktı `packages/api-client/angular` |
-| Contract test | `schemathesis` (çalışan backend'e karşı) |
+**Events (AsyncAPI 3 or the project's schema)**
+- Names in the past tense (`invoice.paid`); payloads carry `eventId`, `occurredAt`, `version`.
 
-## Kurallar
+**protobuf**
+- One package per service and version (`orders.v1`); never reuse or renumber a field tag;
+  `reserved` for removed fields.
 
-- Üretilmiş kod elle düzenlenmez; başına "GENERATED - DO NOT EDIT" yazılır ve codegen
-  komutu CI'da tekrar çalıştırılıp diff kontrol edilir.
-- Contract değişikliği ve onu kullanan kod aynı PR'da olur, contract commit'i önce gelir.
-- Backend handler'ı üretilen arayüzü implemente etmek zorundadır; derleyici/typecheck
-  contract uyumsuzluğunu yakalamalıdır.
+**GraphQL**
+- Nullable by default, non-null only when guaranteed; deprecate with `@deprecated(reason:)`
+  before removing.
+
+## Where contracts live
+
+The project decides. Common layouts the scan recognises: one folder per module
+(`contracts/<module>/`) in a modular monolith; a shared `proto/` or `contracts/` folder, or one
+spec per service, in microservices; none at all in a full stack app, where shared types are the
+contract.

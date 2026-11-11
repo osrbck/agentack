@@ -1,30 +1,31 @@
-# Feature: <Başlık>
+# Feature: <title>
 
-**Slug:** <slug> · **Boyut:** S/M/L · **Contract etkisi:** yok/ekleyici/kırıcı · **Risk:** normal/yüksek
+**Slug:** <slug> · **Path:** Fast/Standard/Heavy · **Size:** S/M/L · **Contract:** none/additive/breaking · **Risk:** normal/high
 
-## Hedef
-<Kullanıcı açısından ne değişecek, 2–3 cümle>
+## Goal
+<What changes for the user, 2–3 sentences>
 
-## Etkilenen modüller
-| Modül | Değişiklik | Contract |
+## Units and modules affected
+| Unit / module | Change | Contract |
 |---|---|---|
 
-## Contract değişiklikleri
-- `contracts/<module>/openapi.yaml`: <ekle/değiştir>
-- `contracts/<module>/events.asyncapi.yaml`: <...>
+## Contract changes
+- `<contract file>`: <add/change, additive or breaking>
 
-## Görevler
-| # | Görev | Ajan | Bağımlı | Dokunacağı yerler |
+## Tasks
+| # | Task | Role | Depends on | Paths |
 |---|---|---|---|---|
-| 1 | Contract taslağı | architect | — | contracts/<module> |
-| 2 | Contract kontrol + codegen | contract-guard | 1 | packages/api-client, gen/ |
-| 3 | ... | be-go | 2 | apps/api-go/internal/modules/<module> |
-| 4 | ... | fe-next | 2 | apps/web-next/... |
-| 5 | Contract + entegrasyon testleri | qa | 3,4 | tests/ |
-| 6 | Review | reviewer | 5 | — |
+| 1 | Contract draft | architect | — | <contract path> |
+| 2 | Contract gate | contract-guard | 1 | <generated paths> |
+| 3 | ... | be-<stack> | 2 | <backend unit>/<module> |
+| 4 | ... | fe-<stack> | 2 | <frontend unit>/<feature> |
+| 5 | Review | reviewer | 3,4 | — |
 
-## Kabul kriterleri
+## Roles not needed
+<e.g. qa: builders' unit tests cover it · decider: no hard-to-reverse decision>
+
+## Acceptance criteria
 - [ ]
 
-## Riskler ve açık sorular
+## Risks and open questions
 -

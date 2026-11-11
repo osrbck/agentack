@@ -1,23 +1,23 @@
-# ADR-NNNN: <Başlık>
+# ADR-NNNN: <title>
 
-- **Durum:** Önerildi | Kabul edildi | Yerini aldı: ADR-XXXX
-- **Tarih:** YYYY-AA-GG
-- **Karar veren:** decider (Fable) · eleştiren: reviewer (Opus) · onay: <kullanıcı>
+- **Status:** Proposed | Accepted | Superseded by ADR-XXXX
+- **Date:** YYYY-MM-DD
+- **Decided by:** decider (<provider:model>) · second opinion: <provider:model or none> · approved by: <user>
 
-## Bağlam
-<Problem, kısıtlar, etkilenen modüller>
+## Context
+<Problem, constraints, modules affected>
 
-## Karar
-<Tek, net karar>
+## Decision
+<One clear decision>
 
-## Değerlendirilen seçenekler
-| Seçenek | Artı | Eksi | Neden seçilmedi |
+## Options considered
+| Option | For | Against | Why not chosen |
 |---|---|---|---|
 
-## Sonuçlar
-- Olumlu:
-- Olumsuz / kabul edilen borç:
-- Geri dönüş maliyeti:
+## Consequences
+- Positive:
+- Negative / accepted debt:
+- Cost of reversal:
 
-## Contract ve modül etkisi
-<Değişen contract'lar, sınırlar, migration planı>
+## Contract and module impact
+<Contracts changed, boundaries, migration plan>
